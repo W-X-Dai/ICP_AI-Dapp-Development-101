@@ -2,6 +2,12 @@
 
 Dai is a decentralized AI chatbot built on the Internet Computer Protocol (ICP). This README provides guidance on setting up and running the application.
 
+## 我的改動
+
+1. 新增指令，讓回應變得十分中二
+2. 對話中出現數學公式會渲染
+3. 可以匯出對話歷史，以時間戳記作為檔名，對話歷史中也會紀錄每句話的時間
+
 ## **Setup**
 
 ### **Frontend Canister**
