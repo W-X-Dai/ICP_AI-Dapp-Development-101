@@ -12,6 +12,7 @@ export default function Chat() {
   const [openaiKey, setOpenaiKey] = useState("");
   const { loading, chatCompletion, chatMessage, setChatMessage } = useApi();
 
+  // 更新聊天訊息
   const updateChatMessage = async () => {
     if (window.auth.principalText && window.auth.isAuthenticated) {
       const conversation = await getConversation(window.auth.principalText);
@@ -21,21 +22,25 @@ export default function Chat() {
     }
   };
 
+  // 格式化數學公式
   const formatMathEquations = (input) => {
     const lines = input.split("\n");
     return lines
       .map((line) => {
+        // 處理行內公式 $...$
         const inlineFormatted = line.replace(/\$(.+?)\$/g, (_, content) => {
-          return `\\(${content}\\)`;
+          return `\\(${content}\\)`; // MathJax 行內公式格式
         });
 
+        // 處理獨立公式 $$...$$
         return inlineFormatted.replace(/\$\$(.+?)\$\$/g, (_, content) => {
-          return `\\[${content}\\]`;
+          return `\\[${content}\\]`; // MathJax 獨立公式格式
         });
       })
       .join("\n");
   };
 
+  // 提交多行訊息處理
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!window.auth.isAuthenticated) {
@@ -49,59 +54,32 @@ export default function Chat() {
       return;
     }
 
-    if (question) {
-      const history = [...chatMessage, { content: formatMathEquations(question), role: "user" }];
-      setChatMessage(() => [...history]);
-      await chatCompletion(history);
-      setQuestion("");
+    if (question.trim()) {
+      // 處理多行輸入並格式化數學公式
+      const multiLineMessages = question
+        .trim()
+        .split("\n")
+        .map((line) => ({ content: formatMathEquations(line), role: "user" }));
+
+      const updatedMessages = [...chatMessage, ...multiLineMessages];
+      setChatMessage(() => [...updatedMessages]);
+      await chatCompletion(updatedMessages);
+      setQuestion(""); // 清空輸入框
     }
-  };
-
-  const formatRole = (role) => {
-    if (role === "user") return "User";
-    if (role === "assistant") return "ChatBot";
-    return role;
-  };
-
-  const exportChatHistory = () => {
-    const chatHistory = chatMessage
-      .map((msg) => {
-        const timestamp = new Date().toLocaleString();
-        const formattedRole = formatRole(msg.role);
-        return `[${timestamp}] ${formattedRole}: ${msg.content}\n-------------------------`;
-      })
-      .join("\n");
-
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
-    const hours = String(now.getHours()).padStart(2, "0");
-    const minutes = String(now.getMinutes()).padStart(2, "0");
-    const seconds = String(now.getSeconds()).padStart(2, "0");
-
-    const filename = `chat_history_${year}${month}${day}_${hours}${minutes}${seconds}.txt`;
-
-    const blob = new Blob([chatHistory], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-
-    URL.revokeObjectURL(url);
   };
 
   useEffect(() => {
     updateChatMessage();
   }, []);
 
+  // 渲染新的聊天訊息後觸發 MathJax
   useEffect(() => {
     if (window.MathJax) {
       window.MathJax.typeset();
     }
   }, [chatMessage]);
 
+  // 驗證 OpenAI API Key
   const onValidateOpenaiAPI = (e) => {
     if (e.target.value.match(/^sk-[a-zA-Z0-9-_]{32,}$/)) {
       setOpenaiKey(e.target.value);
@@ -110,6 +88,7 @@ export default function Chat() {
     }
   };
 
+  // 儲存 OpenAI API Key
   const onSaveOpenaiKey = () => {
     if (!openaiKey) return toast.error("Invalid OpenAI key");
     const encryptedApiKey = encryptData(openaiKey);
@@ -122,11 +101,6 @@ export default function Chat() {
     <div className="wrapper">
       <div className="wrapper-header">
         <h1>My ChatBot</h1>
-        <button 
-          className="auth-button auth-button__hover"
-          onClick={exportChatHistory}>匯出對話紀錄
-        </button>
-
         <button
           className="auth-button auth-button__hover"
           onClick={() => (window.auth.isAuthenticated ? logout() : login())}
@@ -173,20 +147,26 @@ export default function Chat() {
           </div>
           <div className="write">
             <input
-              placeholder="Ask me..."
-              type="text"
+              placeholder="Enter multiple lines or math equations..."
+              rows="4"
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              onKeyDown={(e) => (e.key === "Enter" ? handleSubmit(e) : null)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  handleSubmit(e);
+                }
+              }}
             />
             {loading && <Loading />}
             {!loading && (
-              <a
+              <button
                 onClick={(e) => {
                   handleSubmit(e);
                 }}
-                className="write-link send"
-              ></a>
+                className="auth-button auth-button__hover"
+              >
+                Send
+              </button>
             )}
           </div>
         </div>
